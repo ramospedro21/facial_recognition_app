@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Reconhecimento Facial</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        #videoContainer {
+            position: relative;
+            width: 640px;
+            height: 480px;
+        }
+        #video {
+            transform: scaleX(-1);
+        }
+        .corner {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            border: 3px solid red;
+            display: none;
+        }
+        #topLeft { border-right: none; border-bottom: none; }
+        #topRight { border-left: none; border-bottom: none; }
+        #bottomLeft { border-right: none; border-top: none; }
+        #bottomRight { border-left: none; border-top: none; }
+        #loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(0,0,0,0.7);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>Sistema de Reconhecimento Facial</h1>
+    <button id="startButton">Iniciar Reconhecimento</button>
+    <div id="videoContainer">
+        <video id="video" width="640" height="480" autoplay></video>
+        <div id="topLeft" class="corner"></div>
+        <div id="topRight" class="corner"></div>
+        <div id="bottomLeft" class="corner"></div>
+        <div id="bottomRight" class="corner"></div>
+        <div id="loading">Carregando...</div>
+    </div>
+    <canvas id="canvas" width="640" height="480" style="display:none;"></canvas>
+    <div id="result"></div>
+
+    <script>
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const startButton = document.getElementById('startButton');
+        const resultDiv = document.getElementById('result');
+        const loading = document.getElementById('loading');
+        const corners = document.querySelectorAll('.corner');
+
+        startButton.addEventListener('click', async () => {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                video.srcObject = stream;
+            } catch (err) {
+                console.error("Erro ao acessar a câmera: ", err);
+            }
+        });
+
+        video.addEventListener('play', () => {
+            setInterval(() => {
+                canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+                canvas.toBlob((blob) => {
+                    const formData = new FormData();
+                    formData.append('image', blob, 'capture.jpg');
+                    
+                    loading.style.display = 'block';
+                    corners.forEach(corner => corner.style.display = 'none');
+
+                    setTimeout(() => {
+                        $.ajax({
+                            url: '/recognize',
+                            type: 'POST',
+                            data: formData,
+                            processData: false,
+                            contentType: false,
+                            success: function(data) {
+                                loading.style.display = 'none';
+                                if (data.recognized) {
+                                    let resultHtml = "<h2>Resultados:</h2>";
+                                    data.results.forEach(result => {
+                                        resultHtml += `<p>Nome: ${result.name}, Nível de Acesso: ${result.access_level}</p>`;
+                                    });
+                                    resultDiv.innerHTML = resultHtml;
+
+                                    corners.forEach(corner => corner.style.display = 'block');
+                                    const boxSize = 200;
+                                    const left = (640 - boxSize) / 2;
+                                    const top = (480 - boxSize) / 2;
+                                    document.getElementById('topLeft').style.left = `${left}px`;
+                                    document.getElementById('topLeft').style.top = `${top}px`;
+                                    document.getElementById('topRight').style.right = `${left}px`;
+                                    document.getElementById('topRight').style.top = `${top}px`;
+                                    document.getElementById('bottomLeft').style.left = `${left}px`;
+                                    document.getElementById('bottomLeft').style.bottom = `${top}px`;
+                                    document.getElementById('bottomRight').style.right = `${left}px`;
+                                    document.getElementById('bottomRight').style.bottom = `${top}px`;
+                                } else {
+                                    resultDiv.innerHTML = "<p>Nenhuma face reconhecida</p>";
+                                    corners.forEach(corner => corner.style.display = 'none');
+                                }
+                            }
+                        });
+                    }, 5000);
+                }, 'image/jpeg');
+            }, 1000);
+        });
+    </script>
+</body>
+</html>
