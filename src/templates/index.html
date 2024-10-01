@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema de Reconhecimento Facial</title>
+    <title>Sistema de Reconhecimento Facialaaa</title>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
         #videoContainer {
             position: relative;
@@ -36,6 +37,10 @@
             border-radius: 5px;
             display: none;
         }
+        #errorMessage {
+            color: red;
+            display: none;
+        }
     </style>
 </head>
 <body>
@@ -51,6 +56,7 @@
     </div>
     <canvas id="canvas" width="640" height="480" style="display:none;"></canvas>
     <div id="result"></div>
+    <div id="errorMessage">Tentativas excedidas. Acesso bloqueado.</div>
 
     <script>
         const video = document.getElementById('video');
@@ -59,6 +65,11 @@
         const resultDiv = document.getElementById('result');
         const loading = document.getElementById('loading');
         const corners = document.querySelectorAll('.corner');
+        const errorMessage = document.getElementById('errorMessage');
+
+        let failedAttempts = 0;
+        let recognitionActive = true;
+        let screenshotSent = false;
 
         startButton.addEventListener('click', async () => {
             try {
@@ -71,6 +82,8 @@
 
         video.addEventListener('play', () => {
             setInterval(() => {
+                if (!recognitionActive) return;
+
                 canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
                 canvas.toBlob((blob) => {
                     const formData = new FormData();
@@ -87,6 +100,7 @@
                             processData: false,
                             contentType: false,
                             success: function(data) {
+
                                 loading.style.display = 'none';
                                 if (data.recognized) {
                                     let resultHtml = "<h2>Resultados:</h2>";
@@ -108,8 +122,43 @@
                                     document.getElementById('bottomRight').style.right = `${left}px`;
                                     document.getElementById('bottomRight').style.bottom = `${top}px`;
                                 } else {
+
+                                    failedAttempts++;
                                     resultDiv.innerHTML = "<p>Nenhuma face reconhecida</p>";
                                     corners.forEach(corner => corner.style.display = 'none');
+
+                                    if (failedAttempts >= 3) {
+                                        recognitionActive = false;
+
+                                        if (!screenshotSent) {
+                                            const timestamp = Date.now();
+
+                                            html2canvas(document.body).then(canvas => {
+                                                canvas.toBlob((blob) => {
+                                                    const screenFormData = new FormData();
+                                                    screenFormData.append('screenshot', blob, `${timestamp}.png`);
+
+                                                    $.ajax({
+                                                        url: '/upload_screenshot',
+                                                        type: 'POST',
+                                                        data: screenFormData,
+                                                        processData: false,
+                                                        contentType: false,
+                                                        success: function() {
+                                                            console.log("Captura de tela enviada com sucesso.");
+                                                        },
+                                                        error: function() {
+                                                            console.error("Erro ao enviar a captura de tela.");
+                                                        }
+                                                    });
+                                                }, 'image/png');
+                                            });
+
+                                            screenshotSent = true;
+                                        }
+                                        errorMessage.style.display = 'block';
+                                        video.srcObject.getTracks().forEach(track => track.stop());
+                                    }
                                 }
                             }
                         });
