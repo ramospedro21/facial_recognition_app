@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema de Reconhecimento Facialaaa</title>
+    <title>Sistema de Reconhecimento Facial</title>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
@@ -103,7 +103,9 @@
 
                                 loading.style.display = 'none';
                                 if (data.recognized) {
+                                    recognitionActive = false;
                                     let resultHtml = "<h2>Resultados:</h2>";
+                                    console.log(data);
                                     data.results.forEach(result => {
                                         resultHtml += `<p>Nome: ${result.name}, Nível de Acesso: ${result.access_level}</p>`;
                                     });

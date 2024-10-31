@@ -20,14 +20,16 @@ for filename in os.listdir(authorized_faces_dir):
         face_image = face_recognition.load_image_file(image_path)
 
         face_encodings = face_recognition.face_encodings(face_image)
-        if face_encodings:  # Verifica se a lista não está vazia
+        if face_encodings:
             face_encoding = face_encodings[0]
 
-            # Definir nível de acesso baseado no nome do arquivo
-            if "pedro" in name.lower():
-                access_level = 3
-            elif "diretor" in name.lower():
+            print("Nome do arquivo:", name)
+            name = name.strip()
+
+            if "diretor" in name.lower():
                 access_level = 2
+            elif "ministro" in name.lower():
+                access_level = 3
             else:
                 access_level = 1
         else:
@@ -57,8 +59,10 @@ def recognize():
     face_encodings = face_recognition.face_encodings(rgb_img, face_locations)
     
     results = []
+    threshold = 0.6
+    
     for face_encoding in face_encodings:
-        matches = face_recognition.compare_faces([data["encoding"] for data in authorized_faces.values()], face_encoding)
+        matches = face_recognition.compare_faces([data["encoding"] for data in authorized_faces.values()], face_encoding, tolerance=threshold)
         name = "Desconhecido"
         access_level = 0
         
